@@ -202,7 +202,9 @@ BOOL CreateChildProcess(HANDLE *pChildHandle, DWORD *pid, BOOL bPrintLog, LPTSTR
 	si.dwFlags = STARTF_USESTDHANDLES;
 
 	if (bPrintLog) {
-		_tprintf(TEXT("Starting %s"),pszCommandLine);
+        if (pszCurrentDirectory)
+            _tprintf(TEXT("Current directory: %s\n"), pszCurrentDirectory);
+		_tprintf(TEXT("Starting: %s"), pszCommandLine);
 	}
 
 	bReturn = CreateProcess(NULL, pszCommandLine, NULL, NULL, TRUE, CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, pszEvnVar, pszCurrentDirectory, &si, &pi);
@@ -327,13 +329,14 @@ BOOL Fork()
 
 void Usage() {
 	printf("RunHiddenConsole Usage:\n"
-		"RunHiddenConsole.exe [/l] [/w] [/r] [/n name] [/k name] [/o output-file] [/p pidfile] commandline\n"
+		"RunHiddenConsole.exe [/l] [/w] [/r] [/n name] [/k name] [/o output-file] [/d working-dir] [/p pidfile] commandline\n"
 	 "For example:\n"
 	 "RunHiddenConsole.exe /l /r e:\\WNMP\\PHP\\php-cgi.exe -b 127.0.0.1:9000 -c e:\\WNMP\\php\\php.ini\n"
 	 "RunHiddenConsole.exe /l /r E:/WNMP/nginx/nginx.exe -p E:/WNMP/nginx\n"
 	 "The /l is optional, printing the result of process startup\n"
 	 "The /w is optional, waiting for termination of the process\n"
 	 "The /o is optional, redirecting the output of the program to a file\n"
+	 "The /d is optional, current working directory path\n"
 	 "The /p is optional, saving the process id to a file\n"
 	 "The /r is optional, supervise the child process, if the child process exits, restart the child process\n"
 	 "The /n is optional, naming control signals\n"
@@ -343,8 +346,8 @@ void Usage() {
 int _tmain(int nArgc, _TCHAR ** ppArgv)
 {
 	TCHAR * pch;
-	TCHAR * pszExePath, szExePath[MAX_FILEPATH], szCurrentDirectory[MAX_FILEPATH];
-	TCHAR * pszCommandLine = NULL, *pszOutputFile = NULL, *pszPidFile = NULL, *pszSignalName = NULL;
+	TCHAR * pszExePath, szExePath[MAX_FILEPATH];
+	TCHAR * pszCommandLine = NULL, *pszOutputFile = NULL, *pszCurrentDirectory = NULL, *pszPidFile = NULL, *pszSignalName = NULL;
 	BOOL bHasSpace;
 	BOOL bReturn;
 	BOOL bWaitExit = 0, bPrintLog = 0, bResume = 0, bFork = 0, bKill = 0;
@@ -408,6 +411,19 @@ int _tmain(int nArgc, _TCHAR ** ppArgv)
 						return -1;
 					}
 					
+					break;
+				case 'd':
+					if (i < nArgc - 1) {
+						i++;
+						iCmdLinePos++;
+						pszCurrentDirectory = ppArgv[i];
+					}
+					else {
+						_tprintf(TEXT("No current working directory path!\n"));
+						Usage();
+						return -1;
+					}
+
 					break;
 				case 'p':
 					if (i <nArgc -1) {
@@ -513,13 +529,7 @@ int _tmain(int nArgc, _TCHAR ** ppArgv)
 	}
 	
 	pszExePath = ppArgv[iCmdLinePos];
-	if (pszExePath[1] != ':') {
-		_tcscpy(szExePath,g_szMyPath);
-		_tcscpy(&szExePath[g_iMyPathLen],pszExePath);
-	}
-	else {
-		_tcscpy(szExePath,pszExePath);
-	}
+	_tcscpy(szExePath,pszExePath);
 	pszExePath = szExePath;
 
 	pch = pszExePath;
@@ -530,10 +540,6 @@ int _tmain(int nArgc, _TCHAR ** ppArgv)
 
 		pch ++;
 	}
-
-	_tcscpy(szCurrentDirectory,pszExePath);
-	pch = _tcsrchr(szCurrentDirectory,'\\');
-	*pch = 0;
 
 	pszCommandLine = (TCHAR *)malloc(sizeof (TCHAR) * MAX_COMMAND_LINE);
 	if (!pszCommandLine) {
@@ -568,7 +574,7 @@ int _tmain(int nArgc, _TCHAR ** ppArgv)
 		CreateChildProcessJob();
 	}
 	
-	bReturn = CreateChildProcess(&hChildProcess, &dwChildPid, bPrintLog, pszCommandLine, pszOutputFile, szCurrentDirectory);
+	bReturn = CreateChildProcess(&hChildProcess, &dwChildPid, bPrintLog, pszCommandLine, pszOutputFile, pszCurrentDirectory);
 
 	if (!bReturn) {
 		DWORD dwError = GetLastError();
@@ -623,7 +629,7 @@ int _tmain(int nArgc, _TCHAR ** ppArgv)
 				if (!bResume)
 					break;
 
-				bReturn = CreateChildProcess(&hChildProcess, &dwChildPid, FALSE, pszCommandLine, pszOutputFile, szCurrentDirectory);
+				bReturn = CreateChildProcess(&hChildProcess, &dwChildPid, FALSE, pszCommandLine, pszOutputFile, pszCurrentDirectory);
 
 				if (bReturn)
 					SavePidToFile(pszPidFile, dwChildPid);
@@ -652,4 +658,11 @@ int _tmain(int nArgc, _TCHAR ** ppArgv)
 	return 0;
 }
 
-
+int APIENTRY wWinMain(
+	_In_ HINSTANCE hInstance,
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPWSTR lpCmdLine,
+	_In_ int nCmdShow) 
+{
+	return _tmain(__argc, __wargv);
+}

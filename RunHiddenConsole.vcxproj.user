@@ -5,7 +5,10 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommandArguments>/l /w "E:\WNMP\php - 副本\php-cgi" -b 127.0.0.1:9000</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>/l /w pwsh.exe -NoProfile -File E:/dotfiles/bin/vmr-d.ps1</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ShowAllFiles>true</ShowAllFiles>
   </PropertyGroup>
 </Project>
